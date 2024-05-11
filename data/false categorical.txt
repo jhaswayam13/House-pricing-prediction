@@ -1,0 +1,16 @@
+ExterCond-NA
+ExterQual-NA
+BsmtQual
+BsmtCond
+BsmtExposure
+BsmtFinType1
+BsmtFinType2
+HeatingQC-NA
+KitchenQual-NA
+Functional-NA
+FireplaceQu
+GarageFinish
+GarageQual
+GarageCond
+PoolQC
+Fence

@@ -1,0 +1,3 @@
+MSSubClass
+OverallQual
+OverallCond
