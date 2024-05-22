@@ -1,51 +1,56 @@
 import warnings
-import numpy as np
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as pl
 import seaborn as sns
+from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error,mean_squared_error, r2_score
+
 
 warnings.filterwarnings("ignore", category=Warning)
 
-dataframe=pd.read_csv(r"E:\Swayam\technical_skills\python\Machine learning\projects\House Pricing prediction\data\train.csv")
-
 
 pd.set_option('display.max_columns',None)
+pd.set_option('display.max_rows', None)
 np.random.seed(13)
 sns.set_style('whitegrid')
 
 
 
+class Reading_csv:
+    def __init__(self,filepath):
+        self.filepath=filepath
 
-# plotting the distibution of target variable i..e SalePrice
-data=dataframe['SalePrice']
+    def read(self):
+        try:
+            self.dataframe=pd.read_csv(self.filepath)
+            return self
 
-sns.boxplot(data=data,color='skyblue')
-pl.axhline(data.median(), color='red', linestyle='dashed', linewidth=1.5, label='Median') # adding median line
+        except FileNotFoundError:
+            self.dataframe=0
+            return self
 
-pl.axhline(data.quantile(0.25), color='green', linestyle='dashed', linewidth=1, label='25th Percentile') # adding 25 %ile line
-pl.axhline(data.quantile(0.75), color='green', linestyle='dashed', linewidth=1, label='75th Percentile') # adding 75% ile line
+path=r"E:\Swayam\technical_skills\python\OOPs\datad\data_HP\train.csv"
 
-pl.ylabel('Sale Price')
-pl.title('Box Plot of Sale Price')
+Reader=Reading_csv(path)
+dataframe=Reader.read().dataframe   # dataframe created 
 
-pl.legend()
+class splitting_dataset(Reading_csv):
+    def __init__(self,filepath):
+        super().__init__(filepath)
+        self.read()
 
-pl.show()
+    def split(self):
+        self.val_data,self.train_data=train_test_split(self.dataframe,test_size=0.75,random_state=13)
+        return self
+        
 
-
-
-
-# splitted 75-25(%) to train and val data further diving into input and targetted dataframes/pandas.core series 
-
-
-val_data,train_data=train_test_split(dataframe,test_size=0.75,random_state=13)
+train_data=splitting_dataset(path).split().train_data
+val_data=splitting_dataset(path).split().val_data
 
 input_cols=list(train_data.columns[1:-1])
 
@@ -63,42 +68,89 @@ train_target=train_data[target_cols]
 val_input=val_data[input_cols]
 val_target=val_data[target_cols]
 
-# separating numerical and categorical columns
-
-numerical_cols=train_input.select_dtypes(include=np.number).columns.tolist()
-categorical_cols=train_input.select_dtypes(include='object').columns.tolist()
-
-false_numerical=['MSSubClass']
-
-for col in false_numerical:
-    if col in numerical_cols:
-        numerical_cols.remove(col)
-        categorical_cols.append(col)
-
-numerical_cols.remove('YrSold')
-
-# let us now fill the nan values in mumerical cols with average value of thatv column using simple impoter
-
-imputer=SimpleImputer(strategy='mean')
-
-imputer.fit(dataframe[numerical_cols])
-
-train_input[numerical_cols]=imputer.transform(train_input[numerical_cols])
-val_input[numerical_cols]=imputer.transform(val_input[numerical_cols])
-
-# and now try to create a ordinary encoding label manually
-
-ordinal_cols_t1=['BsmtQual','BsmtCond','BsmtExposure','BsmtFinType1','BsmtFinType2','HeatingQC','FireplaceQu','GarageFinish','GarageQual','GarageCond','PoolQC','Fence']
-ordinal_cols_t2=['ExterCond','ExterQual','KitchenQual']     # ordinal encoding without NA/0
-ordinal_cols_t3=['Functional']
-ordinal_cols_t4='YrSold'
 
 
 
 
 
-# creating an ordinal labelling for t1 and t2 t3 and t4 manually
-dict_t1={
+
+class column_identification(Reading_csv):
+    def __init__(self,filepath):
+        super().__init__(filepath)
+        self.read()
+
+    def numerical_categorical(self,data_to_change):
+        self.num_col=data_to_change.select_dtypes(include=np.number).columns.to_list()
+        self.cat_col=data_to_change.select_dtypes(include='object').columns.to_list()
+        return self
+
+
+numerical_col=column_identification(path).numerical_categorical(train_input).num_col
+catgeorical_col=column_identification(path).numerical_categorical(train_input).cat_col
+
+
+
+class feature_engineering(Reading_csv):
+    def __init__(self,filepath):
+        super().__init__(filepath)
+        self.read()
+
+    def col_appender(self,col_to_append,col_list):
+        col_to_append.extend(col_list)
+
+    def col_remover(self,col_to_remove,col_list):
+        for elements in col_list:
+            col_to_remove.remove(elements)
+    def null_remover(self,whom_to_remove,col_list):
+        whom_to_remove.drop(columns=col_list,inplace=True)
+        
+        
+
+class simple_imputer(feature_engineering):
+    def __init__(self,path):
+        super().__init__(path)
+
+    def imputing(self,fitter,who_fit,cols_to_fit):
+        imputer=SimpleImputer(strategy='mean')
+        imputer.fit(fitter[cols_to_fit])
+        who_fit[cols_to_fit]=imputer.transform(who_fit[cols_to_fit])
+        
+imputer=simple_imputer(path)
+
+
+imputer.imputing(dataframe,train_input,numerical_col)
+imputer.imputing(dataframe,val_input,numerical_col)
+
+
+
+
+class Encoding(feature_engineering):
+    def __init__(self, filepath):
+        super().__init__(filepath)
+        self.encoder=OneHotEncoder(sparse_output=False,handle_unknown='ignore')
+
+    def label_encoder(self,whom_to_label,col_list,dictionary_to_map):
+        for col in col_list:
+            whom_to_label[col]=whom_to_label[col].map(dictionary_to_map)
+
+    def one_hot_encoder(self,whom_to_encode,col_list):
+       
+        self.encoder.fit(whom_to_encode[col_list])
+        return self.encoder
+        
+    def encoding_stage2(self,whom_to_encode,col_list):
+ 
+        encoded_cols=list(self.encoder.get_feature_names_out(col_list))
+        whom_to_encode[encoded_cols]=self.encoder.transform(whom_to_encode[catgeorical_col])
+        self.encoded_cols=encoded_cols
+        return encoded_cols
+
+
+
+
+
+
+dict_1= {
 
     'Ex':5,
     'Gd':4,
@@ -138,104 +190,112 @@ dict_t4={
     2009:4,
     2010:5
 
-
-
 }
+        
 
-for col1 in ordinal_cols_t1:
-    train_input[col1]=train_input[col1].map(dict_t1)
+t1_col_to_encode=['BsmtQual','BsmtCond','BsmtExposure','BsmtFinType1','BsmtFinType2','HeatingQC','FireplaceQu','GarageFinish','GarageQual','GarageCond','PoolQC','Fence']
+t2_col_to_encode=['ExterCond','ExterQual','KitchenQual']
+t3_col_to_encode=['Functional']
+t4_col_to_encode=['YrSold']
 
-for col2 in ordinal_cols_t2:
-    train_input[col2]=train_input[col2].map(dict_t2)
+Encoder=Encoding(path)
+# encoding training data
+Encoder.label_encoder(train_input,t1_col_to_encode,dict_1)
+Encoder.label_encoder(train_input,t2_col_to_encode,dict_1)
+Encoder.label_encoder(train_input,t3_col_to_encode,dict_1)
+Encoder.label_encoder(train_input,t4_col_to_encode,dict_1)
 
-train_input['Functional']=train_input['Functional'].map(dict_t3)
-
-train_input['YrSold']=train_input['YrSold'].map(dict_t4)
-
-for col1 in ordinal_cols_t1:
-    val_input[col1]=val_input[col1].map(dict_t1)
-
-for col2 in ordinal_cols_t2:
-    val_input[col2]=val_input[col2].map(dict_t2)
-
-val_input['Functional']=val_input['Functional'].map(dict_t3)
-val_input['YrSold']=val_input['YrSold'].map(dict_t4)
-
-
-
-for cols in ordinal_cols_t1 + ordinal_cols_t2+ordinal_cols_t3:
-    if cols in categorical_cols:
-        categorical_cols.remove(cols)
-        numerical_cols.append(cols)
-
-numerical_cols.append(ordinal_cols_t4)
-
-too_many_na=['Functional','Fence','PoolQC','GarageFinish','BsmtFinType2','BsmtFinType1','BsmtExposure']
-
-train_input.drop(columns=too_many_na,inplace=True)
-val_input.drop(columns=too_many_na,inplace=True)
-
-for cols in too_many_na:
-    if cols in numerical_cols:
-        numerical_cols.remove(cols)
-
-print(numerical_cols)
-print(type(numerical_cols))
-train_input[numerical_cols]=train_input[numerical_cols].fillna(0)
-val_input[numerical_cols]=val_input[numerical_cols].fillna(0)
-
-# scaling down the numerical columns to (0,1) using MINMAXSCALER
-
-'''scaler=MinMaxScaler()
-
-scaler.fit(dataframe[numerical_cols])
-
-train_input[numerical_cols]=scaler.transform(train_input[numerical_cols])
-val_input[numerical_cols]=scaler.transform(val_input[numerical_cols])'''
-
-
-# using one hot encoding for categorical columns
+# encoding validation data
+Encoder.label_encoder(val_input,t1_col_to_encode,dict_1)
+Encoder.label_encoder(val_input,t2_col_to_encode,dict_1)
+Encoder.label_encoder(val_input,t3_col_to_encode,dict_1)
+Encoder.label_encoder(val_input,t4_col_to_encode,dict_1)
 
 
 
-encoder=OneHotEncoder(sparse_output=False,handle_unknown='ignore')
-encoder.fit(train_input[categorical_cols])
 
-encoded_cols=list(encoder.get_feature_names_out(categorical_cols))
-train_input[encoded_cols]=encoder.transform(train_input[categorical_cols])
-val_input[encoded_cols]=encoder.transform(val_input[categorical_cols])
-
-
-#Now finally for the climax i.e simple linear regression model aka least square method
-
-linear=LinearRegression()
-input_for_model=train_input[numerical_cols + encoded_cols]
+Encoder.one_hot_encoder(train_input,catgeorical_col)
+encoded_cols=Encoder.encoding_stage2(train_input,catgeorical_col)
+Encoder.encoding_stage2(val_input,catgeorical_col)
 
 
 
 
 
-linear.fit(input_for_model,train_target)
-predictions_train=linear.predict(input_for_model)
+
+feature_engineering(path).col_remover(catgeorical_col,t1_col_to_encode)
+feature_engineering(path).col_remover(catgeorical_col,t2_col_to_encode)
+feature_engineering(path).col_remover(catgeorical_col,t3_col_to_encode)
+
+feature_engineering(path).col_appender(numerical_col,t1_col_to_encode)
+feature_engineering(path).col_appender(numerical_col,t2_col_to_encode)
+feature_engineering(path).col_appender(numerical_col,t3_col_to_encode)
+
+cols_to_remove=['Functional','Fence','PoolQC','GarageFinish','BsmtFinType2','BsmtFinType1','BsmtExposure','YrSold']
+
+train_input.drop(columns=cols_to_remove,inplace=True)
+val_input.drop(columns=cols_to_remove,inplace=True)
+for elements in cols_to_remove:
+    if elements in numerical_col:
+        numerical_col.remove(elements)
+
+train_input[numerical_col]=train_input[numerical_col].fillna(0)
+val_input[numerical_col]=val_input[numerical_col].fillna(0)
+
+
+# Data preprocessing has been completed 
+
+
+# starting training the model 
+
+class Model(Reading_csv):
+    def __init__(self,filepath):
+        super().__init__(filepath)
+        
+        self.read()
+
+    def Linear_Regression(self,input_for_model,target):
+        model=LinearRegression()
+        model.fit(input_for_model,target)
+        predictions=model.predict(input_for_model)
+        self.predictions=predictions
+        
+        featured_weights=pd.DataFrame({
+
+
+            'Feature':numerical_col+encoded_cols,
+            'weights': model.coef_
+        })
+        self.featured_weights=featured_weights
+        return predictions, featured_weights
+     
+
+
+input_for_model=train_input[numerical_col+encoded_cols]
+output_for_model=train_data['SalePrice']
+
+
+Model_instance=Model(path)
+predictions_tm,featured_weights_tm=Model_instance.Linear_Regression(input_for_model,output_for_model)
+
+'''Model work has been completed on training dataset'''
+
+# Model prediction for validation dataset
+
+
+predictions_vm,featured_weights_vm=Model_instance.Linear_Regression(val_input[numerical_col+encoded_cols],val_target)
+
+
+# prediction with preprocessing for val_input
 
 
 
-featured_weights=pd.DataFrame({
-    'Features': (numerical_cols+encoded_cols),
-    'Weights': linear.coef_
-
-
-
-})
-
-
-
-initial_feature=featured_weights.iloc[0:21]
+initial_feature=featured_weights_tm.iloc[0:21]
 
 
 # create a bargraph about weights for different features
-X=initial_feature['Features']
-Y=initial_feature['Weights']
+X=initial_feature['Feature']
+Y=initial_feature['weights']
 
 pl.figure(figsize=(20,10))
 ax=sns.barplot(x=X,y=Y, data=initial_feature)
@@ -243,71 +303,80 @@ ax=sns.barplot(x=X,y=Y, data=initial_feature)
 ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
 pl.show()
 
-# now let's evaluate how accurate was our model for training dataset
 
- 
+class evaluation(Model):
+    def __init__(self,filepath):
+        super().__init__(filepath)
+    def prediction_VS_target(self,X1,Y1,X2,Y2):
+        pl.subplot(1,2,1)   # one ffor training
+        sns.scatterplot(x=X1,y=Y1)
+        pl.title('prediction V/S original target for training dataset')
+        pl.subplot(1,2,2)   # one for validation
+        sns.scatterplot(x=X2,y=Y2)
+        pl.title('prediction V/S original target for validation dataset')
+        pl.show()
 
-
-mae=mean_absolute_error(train_target,predictions_train)
-mse=mean_squared_error(train_target,predictions_train)
-r2=r2_score(train_target,predictions_train)
-
-print("This one is for training dataset")
-print(f"{mae} is the mean absolute error\n {mse} is mean squared error \n and {r2} is the R2 score for the linear regression  model")
-
-metrics_for_train=np.array([mae,mse,r2])
-metrics_for_train = metrics_for_train.reshape(1, -1)
-
-
-
-
-#Now test how our model perform for vlaidation dataset
-val_input_for_model=val_input[numerical_cols + encoded_cols]
-
-predictions_val=linear.predict(val_input_for_model)
-pl.subplot(1,2,1)
-sns.scatterplot(x=train_target,y=predictions_train)
-pl.title("Relation between prediction and actual target for training")
-
-pl.subplot(1,2,2)
-
-sns.scatterplot(x=val_target,y=predictions_val)
-pl.title("Relation between prediction and actual target for validation")
-pl.show()
+    def evaluation_metrics(self,given_target,prediction_target):
+        mae=mean_absolute_error(given_target,prediction_target)
+        mse=mean_squared_error(given_target,prediction_target)
+        r2=r2_score(given_target,prediction_target)
+        self.mae=mae
+        self.mse=mse
+        self.r2=r2
+        return mae,mse,r2
 
 
+    def heatmap_for_metrics(self,mae_tm,mse_tm,r2_tm,mae_vm,mse_vm,r2_vm):
+        metrics_for_map1=np.array([mae_tm,mse_tm,r2_tm])
+        metrics_for_map1=metrics_for_map1.reshape(1,-1)
+        metrics_for_map2=np.array([mae_vm,mse_vm,r2_vm])
+        metrics_for_map2=metrics_for_map2.reshape(1,-1)
 
-mae_val=mean_absolute_error(val_target,predictions_val)
-mse_val=mean_squared_error(val_target,predictions_val)
-r2_val=r2_score(val_target,predictions_val)
+        pl.subplot(1,2,1)
+        sns.heatmap(metrics_for_map2,annot=True,xticklabels=['MAE', 'MSE', 'R2'])
+        pl.xlabel('Metrics')
+        pl.title('Performance Metrics for validation Dataset')
 
-
-print("This one is for training dataset")
-print(f"{mae_val} is the mean absolute error\n {mse_val} is mean squared error \n and {r2_val} is the R2 score for the linear regression  model")
-
-metrics_for_val=np.array([mae_val,mse_val,r2_val])
-
-metrics_for_val = metrics_for_val.reshape(1, -1)
-
-
-
-# plotting heatmap for demonstrating metrics of our model for both training and validation dataset
-
-pl.subplot(1,2,1)
-sns.heatmap(metrics_for_train,annot=True,xticklabels=['MAE', 'MSE', 'R2'])
-pl.xlabel('Metrics')
-pl.title('Performance Metrics for Training Dataset')
-
-pl.subplot(1,2,2)
-
-sns.heatmap(metrics_for_val,annot=True,xticklabels=['MAE', 'MSE', 'R2'])
-pl.xlabel('Metrics')
-pl.title('Performance Metrics for Validation Dataset')
+        pl.subplot(1,2,2)
+        sns.heatmap(metrics_for_map1,annot=True,xticklabels=['MAE', 'MSE', 'R2'])
+        pl.xlabel('Metrics')
+        pl.title('Performance Metrics for training Dataset')
+        pl.show()
 
 
 
 
-pl.show()
+
+Evaluating=evaluation(path)
+
+Evaluating.prediction_VS_target(predictions_tm,train_target,predictions_vm,val_target)  # scatter plot
+mae_tm,mse_tm,r2_tm=Evaluating.evaluation_metrics(train_target,predictions_tm)  # metrics for training dataset
+mae_vm,mse_vm,r2_vm=Evaluating.evaluation_metrics(val_target,predictions_vm)    # metrics for validation dataset 
+
+
+Evaluating.heatmap_for_metrics(mae_tm,mse_tm,r2_tm,mae_vm,mse_vm,r2_vm)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
