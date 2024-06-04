@@ -38,14 +38,15 @@ path=r"E:\Swayam\technical_skills\python\OOPs\datad\data_HP\train.csv"
 
 Reader=Reading_csv(path)
 dataframe=Reader.read().dataframe   # dataframe created 
+data=dataframe['SalePrice']
 
 
 
-sns.boxplot(data=dataframe,color='skyblue')
-pl.axhline(dataframe.median(), color='red', linestyle='dashed', linewidth=1.5, label='Median') # adding median line
+sns.boxplot(data=data,color='skyblue')
+pl.axhline(data.median(), color='red', linestyle='dashed', linewidth=1.5, label='Median') # adding median line
 
-pl.axhline(dataframe.quantile(0.25), color='green', linestyle='dashed', linewidth=1, label='25th Percentile') # adding 25 %ile line
-pl.axhline(dataframe.quantile(0.75), color='green', linestyle='dashed', linewidth=1, label='75th Percentile') # adding 75% ile line
+pl.axhline(data.quantile(0.25), color='green', linestyle='dashed', linewidth=1, label='25th Percentile') # adding 25 %ile line
+pl.axhline(data.quantile(0.75), color='green', linestyle='dashed', linewidth=1, label='75th Percentile') # adding 75% ile line
 
 pl.ylabel('Sale Price')
 pl.title('Box Plot of Sale Price')
@@ -102,7 +103,7 @@ class column_identification(Reading_csv):
 
 numerical_col=column_identification(path).numerical_categorical(train_input).num_col
 catgeorical_col=column_identification(path).numerical_categorical(train_input).cat_col
-print(numerical_col)
+
 
 
 class feature_engineering(Reading_csv):
